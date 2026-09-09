@@ -50,8 +50,8 @@ PostgreSQL + pgvector for RAG (database) · N-ATLaS (AI, Phase 5+).
 ## 12-phase roadmap
 
 1. N-ATLaS research + architecture ✅
-2. Project foundation + UI ✅ (this repo, Phase 2)
-3. Database + authentication
+2. Project foundation + UI ✅
+3. Database + authentication ✅ (PostgreSQL, Alembic, JWT auth, ownership-scoped API)
 4. Curriculum + lesson engine
 5. N-ATLaS integration
 6. AI tutor

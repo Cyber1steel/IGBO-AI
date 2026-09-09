@@ -8,6 +8,7 @@ import "@fontsource/petrona/500.css";
 import "@fontsource/petrona/600.css";
 import "@fontsource/petrona/700.css";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "Igbo AI — Learn Igbo with an AI tutor",
@@ -18,7 +19,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-paper text-ink">{children}</body>
+      <body className="min-h-full flex flex-col bg-paper text-ink">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

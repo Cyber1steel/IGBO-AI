@@ -1,14 +1,7 @@
 // Static mock data powering the Phase 2 UI shell.
-// Phase 3 replaces this with real API calls to the FastAPI backend.
-
-export const learner = {
-  name: "Ada",
-  level: "Beginner",
-  xp: 340,
-  streak: 6,
-  todayGoalMinutes: 15,
-  todayMinutesDone: 8,
-};
+// Learner identity/profile fields (name, level, xp, streak) now come from
+// the real backend (see auth-context.tsx) — this file keeps only the
+// curriculum/exercise/vocabulary data that's still mock until Phase 4.
 
 export const todayPath = [
   { id: "lesson", title: "Lesson", subtitle: "Greetings & introductions", status: "current" as const },

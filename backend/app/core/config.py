@@ -1,4 +1,6 @@
 from functools import lru_cache
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,8 +15,15 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    # Database (Phase 3 wires this up fully — placeholder for now)
+    # Database
     database_url: str = "postgresql+asyncpg://igboai:igboai@localhost:5432/igboai"
+
+    # Auth — JWT access tokens + hashed opaque refresh tokens.
+    # JWT_SECRET_KEY has no safe default: fail loudly in production if unset.
+    jwt_secret_key: str = "dev-only-insecure-secret-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_ttl_minutes: int = 15
+    refresh_token_ttl_days: int = 30
 
     # AI provider selection: "mock" (default/Phase 2) or "natlas" (Phase 5+)
     ai_provider: str = "mock"
@@ -22,6 +31,14 @@ class Settings(BaseSettings):
     # N-ATLaS connection details — unused until Phase 5, read from env only
     natlas_endpoint_url: str | None = None
     natlas_api_key: str | None = None
+
+    @model_validator(mode="after")
+    def _refuse_default_secret_in_production(self) -> "Settings":
+        if self.environment == "production" and self.jwt_secret_key == "dev-only-insecure-secret-change-me":
+            raise ValueError(
+                "JWT_SECRET_KEY must be set to a real secret when ENVIRONMENT=production"
+            )
+        return self
 
 
 @lru_cache

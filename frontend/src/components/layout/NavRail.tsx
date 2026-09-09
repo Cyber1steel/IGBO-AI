@@ -1,13 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { navItems } from "@/lib/nav-items";
-import { Flame } from "lucide-react";
+import { Flame, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export function NavRail() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { profile, logout } = useAuth();
+
+  async function handleLogout() {
+    await logout();
+    router.push("/login");
+  }
 
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:shrink-0 border-r border-line bg-indigo-deep text-paper/90 min-h-screen sticky top-0">
@@ -42,13 +50,20 @@ export function NavRail() {
         })}
       </nav>
 
-      <div className="mx-4 mb-6 rounded-xl bg-paper/5 px-4 py-3.5 flex items-center gap-2.5">
+      <div className="mx-4 mb-3 rounded-xl bg-paper/5 px-4 py-3.5 flex items-center gap-2.5">
         <Flame size={18} className="text-gold" />
         <div className="text-sm">
-          <p className="font-semibold text-paper">6-day streak</p>
+          <p className="font-semibold text-paper">{profile?.current_streak ?? 0}-day streak</p>
           <p className="text-paper/50 text-xs">Learn today to keep it going</p>
         </div>
       </div>
+      <button
+        onClick={handleLogout}
+        className="mx-4 mb-6 flex items-center gap-2 px-3.5 py-2 text-sm text-paper/50 hover:text-paper transition-colors"
+      >
+        <LogOut size={16} />
+        Log out
+      </button>
     </aside>
   );
 }

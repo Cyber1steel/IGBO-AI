@@ -1,12 +1,28 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Circle, Lock, Flame } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { learner, todayPath, units } from "@/lib/mock-data";
+import { todayPath, units } from "@/lib/mock-data";
+import { useAuth } from "@/lib/auth-context";
+import { pingActivity } from "@/lib/api";
+import { formatLevel } from "@/lib/format-level";
 
 export default function DashboardPage() {
+  const { profile, accessToken, refreshProfile } = useAuth();
+
+  // Record today's activity once per visit — drives the real streak count.
+  useEffect(() => {
+    if (accessToken) {
+      pingActivity(accessToken).then(() => refreshProfile()).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
+
   return (
     <div>
       {/* Hero */}
@@ -15,10 +31,10 @@ export default function DashboardPage() {
         <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <p className="text-gold text-sm font-medium mb-2">
-              {learner.level} · {learner.xp} XP
+              {formatLevel(profile?.current_level)} · {profile?.total_xp ?? 0} XP
             </p>
             <h1 className="font-display text-3xl lg:text-4xl mb-2">
-              Ndewo, {learner.name}
+              Ndewo, {profile?.display_name ?? "there"}
             </h1>
             <p className="text-paper/70 max-w-md">
               Today&apos;s path picks up right where you left off — greetings and
@@ -30,9 +46,9 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-4">
             <ProgressRing
-              value={(learner.todayMinutesDone / learner.todayGoalMinutes) * 100}
+              value={0}
               size={110}
-              label={`${learner.todayMinutesDone}/${learner.todayGoalMinutes}`}
+              label={`0/${profile?.daily_goal_minutes ?? 15}`}
               sublabel="min today"
             />
           </div>
@@ -45,7 +61,7 @@ export default function DashboardPage() {
           <h2 className="font-display text-xl">Today&apos;s learning</h2>
           <span className="flex items-center gap-1.5 text-sm font-semibold text-terracotta">
             <Flame size={16} />
-            {learner.streak}-day streak
+            {profile?.current_streak ?? 0}-day streak
           </span>
         </div>
         <Card className="p-0 overflow-hidden">

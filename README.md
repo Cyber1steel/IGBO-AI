@@ -10,7 +10,7 @@ See `PHASE1_RESEARCH.md` for the N-ATLaS research findings and architecture deci
 
 ```text
 frontend/   Next.js + TypeScript + Tailwind — the learner-facing app
-backend/    FastAPI — API, AI provider abstraction, database/auth
+backend/    FastAPI + PostgreSQL — API, auth, AI provider abstraction
 
 cd backend
 
@@ -26,9 +26,17 @@ pip install -r requirements.txt
 # Create your local environment file
 copy .env.example .env
 
+# Run database migrations
+alembic upgrade head
+
+# Seed initial data
+python -m app.scripts.seed
+
 # Start the API
 uvicorn app.main:app --reload --port 8000
 
 cd frontend
+
 npm install
+
 npm run dev
