@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  /* Core palette — named tokens, not decoration */
+  --color-paper: #f5f6ef;      /* app background: pale sage-white, not cream */
+  --color-sand: #eae6d6;       /* card / surface fill */
+  --color-ink: #221d17;        /* primary text */
+  --color-ink-soft: #5c574c;   /* secondary text */
+  --color-indigo: #22355a;     /* primary brand — uli-dye indigo */
+  --color-indigo-deep: #16233d;/* nav / hero depth */
+  --color-gold: #c69a3d;       /* accent — kola gold */
+  --color-gold-soft: #e7d4a3;  /* accent tint */
+  --color-terracotta: #b54a2c; /* energy / streak accent, used sparingly */
+  --color-palm: #3f6b4a;       /* mastery / success */
+  --color-line: #ddd7c4;       /* hairline borders on paper */
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-sand: var(--color-sand);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-indigo: var(--color-indigo);
+  --color-indigo-deep: var(--color-indigo-deep);
+  --color-gold: var(--color-gold);
+  --color-gold-soft: var(--color-gold-soft);
+  --color-terracotta: var(--color-terracotta);
+  --color-palm: var(--color-palm);
+  --color-line: var(--color-line);
+  --font-display: "Petrona", Georgia, serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Visible keyboard focus everywhere — accessibility floor */
+:focus-visible {
+  outline: 2px solid var(--color-indigo);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
