@@ -160,3 +160,159 @@ export async function pingActivity(accessToken: string): Promise<LearnerProfile>
   });
   return res.json();
 }
+
+// --- Curriculum ----------------------------------------------------------
+// Curriculum content is public (not learner-specific); progress/attempts
+// below require a token.
+
+export interface LevelSummary {
+  id: string;
+  code: string;
+  name: string;
+  order: number;
+}
+
+export interface UnitSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  order: number;
+  lesson_count: number;
+}
+
+export interface LevelDetail extends LevelSummary {
+  units: UnitSummary[];
+}
+
+export interface LessonSummary {
+  id: string;
+  title: string;
+  order: number;
+}
+
+export interface UnitDetail extends UnitSummary {
+  lessons: LessonSummary[];
+}
+
+export interface VocabularyItem {
+  id: string;
+  igbo_text: string;
+  english_text: string;
+  part_of_speech: string | null;
+  example_sentence: string | null;
+  category: string | null;
+  difficulty: number;
+  audio_url: string | null;
+  is_verified: boolean;
+}
+
+export interface ExercisePublic {
+  id: string;
+  exercise_type: string;
+  prompt: string;
+  content: Record<string, unknown>;
+  difficulty: number;
+  order: number;
+}
+
+export interface LessonDetail {
+  id: string;
+  title: string;
+  order: number;
+  content: string | null;
+  examples: { igbo: string; english: string }[];
+  unit_id: string;
+  objectives: { description: string; order: number }[];
+  vocabulary: VocabularyItem[];
+  exercises: ExercisePublic[];
+}
+
+export interface LessonProgress {
+  lesson_id: string;
+  status: "not_started" | "in_progress" | "completed";
+  started_at: string | null;
+  completed_at: string | null;
+  score: number | null;
+  attempts: number;
+}
+
+export interface ExerciseAttemptResult {
+  is_correct: boolean;
+  correct_answer: string | null;
+  explanation: string | null;
+  attempt_number: number;
+}
+
+export interface VocabularyProgress {
+  vocabulary: VocabularyItem;
+  exposures_count: number;
+  correct_count: number;
+  incorrect_count: number;
+  mastery_score: number;
+  last_reviewed_at: string | null;
+}
+
+async function publicFetch(path: string): Promise<Response> {
+  const res = await fetch(`${API_BASE_URL}${path}`);
+  if (!res.ok) throw new ApiError(res.status, await parseErrorDetail(res));
+  return res;
+}
+
+export async function getLevels(): Promise<LevelSummary[]> {
+  return (await publicFetch("/curriculum/levels")).json();
+}
+
+export async function getLevelDetail(levelId: string): Promise<LevelDetail> {
+  return (await publicFetch(`/curriculum/levels/${levelId}`)).json();
+}
+
+export async function getUnitDetail(unitId: string): Promise<UnitDetail> {
+  return (await publicFetch(`/curriculum/units/${unitId}`)).json();
+}
+
+export async function getLessonDetail(lessonId: string): Promise<LessonDetail> {
+  return (await publicFetch(`/curriculum/lessons/${lessonId}`)).json();
+}
+
+export async function startLesson(accessToken: string, lessonId: string): Promise<LessonProgress> {
+  const res = await authFetch(`/lessons/${lessonId}/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return res.json();
+}
+
+export async function completeLesson(accessToken: string, lessonId: string): Promise<LessonProgress> {
+  const res = await authFetch(`/lessons/${lessonId}/complete`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return res.json();
+}
+
+export async function getLessonProgress(accessToken: string, lessonId: string): Promise<LessonProgress> {
+  const res = await authFetch(`/lessons/${lessonId}/progress`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return res.json();
+}
+
+export async function attemptExercise(
+  accessToken: string,
+  exerciseId: string,
+  answer: string
+): Promise<ExerciseAttemptResult> {
+  const res = await authFetch(`/exercises/${exerciseId}/attempt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ answer }),
+  });
+  return res.json();
+}
+
+export async function getMyVocabulary(accessToken: string): Promise<VocabularyProgress[]> {
+  const res = await authFetch("/vocabulary/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return res.json();
+}

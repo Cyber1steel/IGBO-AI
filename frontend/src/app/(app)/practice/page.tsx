@@ -1,33 +1,52 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Dumbbell } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { practiceExercises } from "@/lib/mock-data";
-import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { findContinueLesson, ContinueLesson } from "@/lib/curriculum-nav";
 
 export default function PracticePage() {
+  const router = useRouter();
+  const { accessToken } = useAuth();
+  const [next, setNext] = useState<ContinueLesson | null | undefined>(undefined);
+
+  useEffect(() => {
+    findContinueLesson(accessToken ?? null)
+      .then(setNext)
+      .catch(() => setNext(null));
+  }, [accessToken]);
+
   return (
     <div>
       <SectionHeader
-        eyebrow="Unit 2 · People & Family"
         title="Practice"
-        description="Four short exercises. Mistakes get explained, not just marked wrong."
+        description="Exercises live inside each lesson — pick up where you left off."
       />
-      <div className="space-y-3">
-        {practiceExercises.map((ex, i) => (
-          <Card key={ex.id} className="flex items-center gap-4">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sand text-sm font-semibold text-ink-soft">
-              {i + 1}
-            </span>
-            <div className="flex-1 min-w-0">
-              <Badge tone="indigo">{ex.type}</Badge>
-              <p className="mt-2 text-ink font-medium">{ex.prompt}</p>
-            </div>
-            <ChevronRight size={18} className="text-ink-soft/50 shrink-0" />
-          </Card>
-        ))}
-      </div>
-      <Button className="mt-6 w-full sm:w-auto">Start practice</Button>
+
+      {next === undefined && <p className="text-ink-soft">Loading…</p>}
+
+      {next === null && (
+        <Card className="text-center text-ink-soft py-10">
+          You&apos;re all caught up — no lessons left to practice right now.
+        </Card>
+      )}
+
+      {next && (
+        <Card className="flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold/15 text-[#8a6a22]">
+            <Dumbbell size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-ink-soft">{next.unitTitle}</p>
+            <p className="font-semibold text-ink text-lg">{next.lessonTitle}</p>
+          </div>
+          <Button onClick={() => router.push(`/learn/lesson/${next.lessonId}`)}>Continue</Button>
+        </Card>
+      )}
     </div>
   );
 }

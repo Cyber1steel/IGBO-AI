@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Circle, Lock, Flame } from "lucide-react";
+import { ArrowRight, Flame } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { todayPath, units } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth-context";
-import { pingActivity } from "@/lib/api";
+import { pingActivity, getLevels, getLevelDetail, LevelDetail } from "@/lib/api";
 import { formatLevel } from "@/lib/format-level";
+import { findContinueLesson, ContinueLesson } from "@/lib/curriculum-nav";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { profile, accessToken, refreshProfile } = useAuth();
+  const [nextLesson, setNextLesson] = useState<ContinueLesson | null | undefined>(undefined);
+  const [level, setLevel] = useState<LevelDetail | null>(null);
 
   // Record today's activity once per visit — drives the real streak count.
   useEffect(() => {
@@ -22,6 +25,20 @@ export default function DashboardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    findContinueLesson(accessToken).then(setNextLesson).catch(() => setNextLesson(null));
+  }, [accessToken]);
+
+  useEffect(() => {
+    const levelCode = profile?.current_level ?? "absolute_beginner";
+    getLevels()
+      .then((levels) => levels.find((l) => l.code === levelCode))
+      .then((match) => (match ? getLevelDetail(match.id) : null))
+      .then(setLevel)
+      .catch(() => {});
+  }, [profile?.current_level]);
 
   return (
     <div>
@@ -37,10 +54,16 @@ export default function DashboardPage() {
               Ndewo, {profile?.display_name ?? "there"}
             </h1>
             <p className="text-paper/70 max-w-md">
-              Today&apos;s path picks up right where you left off — greetings and
-              introductions.
+              {nextLesson
+                ? `Today's path picks up with "${nextLesson.lessonTitle}" in ${nextLesson.unitTitle}.`
+                : "You're all caught up on your curriculum right now."}
             </p>
-            <Button className="mt-5" icon={<ArrowRight size={17} />}>
+            <Button
+              className="mt-5"
+              icon={<ArrowRight size={17} />}
+              disabled={!nextLesson}
+              onClick={() => nextLesson && router.push(`/learn/lesson/${nextLesson.lessonId}`)}
+            >
               Continue learning
             </Button>
           </div>
@@ -55,77 +78,33 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Today's path */}
-      <section className="mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl">Today&apos;s learning</h2>
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-terracotta">
-            <Flame size={16} />
-            {profile?.current_streak ?? 0}-day streak
-          </span>
-        </div>
-        <Card className="p-0 overflow-hidden">
-          {todayPath.map((step, i) => (
-            <div
-              key={step.id}
-              className="flex items-center gap-4 px-5 py-4 border-b last:border-b-0 border-line"
-            >
-              {step.status === "current" ? (
-                <Circle size={22} className="text-gold shrink-0" fill="var(--color-gold)" />
-              ) : (
-                <Circle size={22} className="text-line shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-ink">{step.title}</p>
-                <p className="text-sm text-ink-soft">{step.subtitle}</p>
-              </div>
-              {step.status === "current" && (
-                <Button size="sm" variant="secondary">
-                  Start
-                </Button>
-              )}
-              <span className="hidden sm:inline text-xs text-ink-soft/60 tabular-nums">
-                {i + 1} / {todayPath.length}
-              </span>
-            </div>
-          ))}
-        </Card>
+      <section className="mb-10 flex items-center justify-between">
+        <h2 className="font-display text-xl">Keep your streak going</h2>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-terracotta">
+          <Flame size={16} />
+          {profile?.current_streak ?? 0}-day streak
+        </span>
       </section>
 
       {/* Curriculum units */}
       <section>
         <h2 className="font-display text-xl mb-4">Your curriculum</h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          {units.map((unit) => (
-            <Link
-              key={unit.id}
-              href={unit.status === "locked" ? "#" : "/learn"}
-              className={unit.status === "locked" ? "pointer-events-none" : ""}
-            >
-              <Card className="h-full hover:border-indigo/30 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-ink">{unit.title}</h3>
-                  {unit.status === "complete" && (
-                    <CheckCircle2 size={18} className="text-palm shrink-0" />
-                  )}
-                  {unit.status === "locked" && (
-                    <Lock size={16} className="text-ink-soft/40 shrink-0" />
-                  )}
-                </div>
-                <p className="text-sm text-ink-soft mb-4">{unit.description}</p>
-                <div className="flex items-center gap-3">
-                  <ProgressBar
-                    value={(unit.lessonsDone / unit.lessonsTotal) * 100}
-                    tone={unit.status === "complete" ? "palm" : "indigo"}
-                  />
-                  <span className="text-xs text-ink-soft shrink-0 tabular-nums">
-                    {unit.lessonsDone}/{unit.lessonsTotal}
-                  </span>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        {!level && <p className="text-ink-soft text-sm">Loading…</p>}
+        {level && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {level.units.map((unit) => (
+              <Link key={unit.id} href={`/learn/${level.id}/${unit.id}`}>
+                <Card className="h-full hover:border-indigo/30 transition-colors">
+                  <h3 className="font-semibold text-ink mb-1.5">{unit.title}</h3>
+                  <p className="text-sm text-ink-soft mb-3">{unit.description}</p>
+                  <p className="text-xs text-ink-soft">
+                    {unit.lesson_count} lesson{unit.lesson_count === 1 ? "" : "s"}
+                  </p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
