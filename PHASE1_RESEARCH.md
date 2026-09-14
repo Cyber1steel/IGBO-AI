@@ -54,7 +54,7 @@ PostgreSQL + pgvector for RAG (database) · N-ATLaS (AI, Phase 5+).
 3. Database + authentication ✅ (PostgreSQL, Alembic, JWT auth, ownership-scoped API)
 4. Curriculum + lesson engine ✅ (levels/units/lessons/exercises/vocabulary, lesson flow, grading)
 5. N-ATLaS integration ✅ (architecture + real HTTP client; no live inference run — no hosted API, no local GPU)
-6. AI tutor
+6. AI tutor ✅ (orchestration layer, learner context incl. performance signal, structured response, conversation persistence/resume)
 7. Exercises + assessment
 8. Conversation
 9. Adaptive learning + spaced repetition

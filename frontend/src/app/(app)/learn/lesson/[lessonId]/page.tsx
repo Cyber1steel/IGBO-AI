@@ -174,7 +174,12 @@ export default function LessonFlowPage() {
             <p className="text-ink-soft mb-5">
               Score: <span className="font-semibold text-ink">{completion?.score ?? "—"}%</span> · +20 XP
             </p>
-            <Button onClick={() => router.push("/learn")}>Back to Learn</Button>
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="secondary" onClick={() => router.push(`/conversation?lessonId=${params.lessonId}`)}>
+                Practice with the tutor
+              </Button>
+              <Button onClick={() => router.push("/learn")}>Back to Learn</Button>
+            </div>
           </div>
         )}
       </Card>

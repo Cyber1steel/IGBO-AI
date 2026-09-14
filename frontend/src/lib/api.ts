@@ -62,8 +62,23 @@ export interface TutorReply {
   provider: string; // e.g. "mock" or "natlas" — surfaced so the UI never claims to be N-ATLaS when it isn't
   correction: string | null;
   explanation: string | null;
+  hint: string | null;
+  example: string | null;
+  follow_up_question: string | null;
+  learning_action: string | null;
   suggested_exercise: string | null;
   language_level: string | null;
+}
+
+export interface ConversationHistoryMessage {
+  role: "learner" | "tutor";
+  content: string;
+  created_at: string;
+}
+
+export interface ConversationHistory {
+  conversation_id: string;
+  messages: ConversationHistoryMessage[];
 }
 
 // The AI tutor call gets a longer timeout than everything else — a real
@@ -103,6 +118,19 @@ export async function checkHealth(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// For resuming a conversation after leaving and coming back — returns null
+// if the learner has never chatted yet, not an error.
+export async function getLatestConversation(accessToken: string): Promise<ConversationHistory | null> {
+  const res = await apiFetch("/api/ai/conversation", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseErrorDetail(res));
+  }
+  const body = await res.json();
+  return body ?? null;
 }
 
 // --- Auth --------------------------------------------------------------

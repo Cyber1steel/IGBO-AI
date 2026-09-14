@@ -157,6 +157,9 @@ async def _reinforce_lesson_vocabulary(db: AsyncSession, learner_id: uuid.UUID, 
     """Very simple exposure bump for vocabulary tied to a just-completed
     lesson. Not the final SRS/mastery algorithm (Phase 4 explicitly defers
     that) — just enough to make VocabularyProgress real and non-empty."""
+    if not lesson.vocabulary:
+        return
+
     for vocab in lesson.vocabulary:
         result = await db.execute(
             select(VocabularyProgress).where(
@@ -179,3 +182,13 @@ async def _reinforce_lesson_vocabulary(db: AsyncSession, learner_id: uuid.UUID, 
             progress.exposures_count += 1
             progress.mastery_score = min(100.0, progress.mastery_score + 15.0)
             progress.last_reviewed_at = now
+
+    # One aggregate event for the whole lesson's vocabulary, not one per
+    # word -- avoids flooding the event log for a lesson with many words.
+    db.add(
+        LearningEvent(
+            learner_id=learner_id,
+            event_type="vocabulary_encountered",
+            payload={"lesson_id": str(lesson.id), "vocabulary_count": len(lesson.vocabulary)},
+        )
+    )

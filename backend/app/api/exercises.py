@@ -47,8 +47,8 @@ async def attempt_exercise(
     db.add(
         LearningEvent(
             learner_id=profile.id,
-            event_type="exercise_answered",
-            payload={"exercise_id": str(exercise_id), "is_correct": is_correct},
+            event_type="exercise_correct" if is_correct else "exercise_incorrect",
+            payload={"exercise_id": str(exercise_id), "attempt_number": attempt_number},
         )
     )
     await db.commit()

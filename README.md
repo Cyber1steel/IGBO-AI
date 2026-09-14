@@ -43,20 +43,22 @@ account to reach the dashboard (learner pages are auth-protected).
 
 ## Current phase
 
-**Phase 5 complete**: N-ATLaS integration architecture. `NATLaSProvider` is
-a real HTTP client (not a stub) targeting a self-hosted OpenAI-compatible
-inference endpoint, configured via `AI_PROVIDER=natlas` +
-`NATLAS_ENDPOINT_URL`. No hosted N-ATLaS API exists and this environment
-has no GPU, so no live inference has actually been run — what's verified is
-that the integration boundary is clean: unreachable/misconfigured N-ATLaS
-fails with a clear 503/504, the app never crashes, and `MockAIProvider`
-(default) is entirely unaffected. The AI tutor is now a real authenticated
-feature: conversations persist per-learner, context (level, current lesson,
-relevant vocabulary) is built server-side and bounded, and responses use a
-structured contract (message + optional correction/explanation/suggested
-exercise/language level). Also hardened request handling app-wide (explicit
-timeouts frontend and backend, retry-capable error states, request-timing
-logs) after investigating a reported curriculum-loading issue.
+**Phase 6 complete**: the AI tutor now has a dedicated orchestration layer
+(`app/services/tutor_orchestrator.py`) separating context-building,
+provider calls, and persistence from the API route. Learner context now
+includes the current unit, a lightweight application-computed
+`performance_signal` ("struggling"/"developing"/"comfortable", derived from
+recent exercise correctness — never invented by the model), and the
+learner's own weakest vocabulary. The response contract grew hint/example/
+follow_up_question/learning_action fields. Conversations resume correctly
+after leaving and returning (`GET /api/ai/conversation`), and learning
+events use canonical names (`exercise_correct`/`exercise_incorrect`,
+`tutor_message_sent`, `tutor_correction_given`, `vocabulary_encountered`).
+N-ATLaS's system prompt now encodes the language policy, structured
+correction behavior, and adaptive tone — still unverified against a live
+model (no hosted API, no local GPU), same honest limitation as Phase 5.
+
+Full 12-phase roadmap lives in `PHASE1_RESEARCH.md`.
 
 Full 12-phase roadmap lives in `PHASE1_RESEARCH.md`.
 
