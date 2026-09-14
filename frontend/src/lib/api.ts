@@ -3,11 +3,22 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// No request may hang forever — every fetch through this module races
+// against this timeout. A hung request becomes a clear, catchable error
+// instead of a page stuck on "Loading…" indefinitely.
+const REQUEST_TIMEOUT_MS = 12_000;
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
+  }
+}
+
+export class ApiTimeoutError extends Error {
+  constructor(path: string) {
+    super(`Request to ${path} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
   }
 }
 
@@ -21,28 +32,65 @@ async function parseErrorDetail(res: Response): Promise<string> {
   return "Something went wrong. Please try again.";
 }
 
+// The one place an actual network request is made. Every other helper in
+// this file (authFetch, publicFetch, sendTutorMessage, checkHealth) goes
+// through this, so the timeout and error handling can't be bypassed by
+// forgetting to add it somewhere new.
+async function apiFetch(path: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiTimeoutError(path);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface TutorMessage {
   role: "learner" | "tutor";
   content: string;
 }
 
 export interface TutorReply {
+  conversation_id: string;
   message: string;
-  provider: string; // e.g. "mock" or "n-atlas" — surfaced so the UI never claims to be N-ATLaS when it isn't
+  provider: string; // e.g. "mock" or "natlas" — surfaced so the UI never claims to be N-ATLaS when it isn't
+  correction: string | null;
+  explanation: string | null;
+  suggested_exercise: string | null;
+  language_level: string | null;
 }
 
+// The AI tutor call gets a longer timeout than everything else — a real
+// inference server can legitimately take longer than a normal API call,
+// and the backend's own provider-call timeout is 25s (see app/api/ai.py) —
+// this must be at least that long or we'd time out client-side first and
+// hide the backend's own clean timeout error.
+const TUTOR_TIMEOUT_MS = 30_000;
+
 export async function sendTutorMessage(
-  history: TutorMessage[],
-  message: string
+  accessToken: string,
+  message: string,
+  conversationId?: string,
+  lessonId?: string
 ): Promise<TutorReply> {
-  const res = await fetch(`${API_BASE_URL}/api/ai/tutor`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ history, message }),
-  });
+  const res = await apiFetch(
+    "/api/ai/tutor",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ message, conversation_id: conversationId, lesson_id: lessonId }),
+    },
+    TUTOR_TIMEOUT_MS
+  );
 
   if (!res.ok) {
-    throw new Error(`Tutor request failed: ${res.status}`);
+    throw new ApiError(res.status, await parseErrorDetail(res));
   }
 
   return res.json();
@@ -50,7 +98,7 @@ export async function sendTutorMessage(
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/health`);
+    const res = await apiFetch("/api/health");
     return res.ok;
   } catch {
     return false;
@@ -88,7 +136,7 @@ export interface LearnerProfile {
 }
 
 async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, credentials: "include" });
+  const res = await apiFetch(path, { ...init, credentials: "include" });
   if (!res.ok) {
     throw new ApiError(res.status, await parseErrorDetail(res));
   }
@@ -253,7 +301,7 @@ export interface VocabularyProgress {
 }
 
 async function publicFetch(path: string): Promise<Response> {
-  const res = await fetch(`${API_BASE_URL}${path}`);
+  const res = await apiFetch(path);
   if (!res.ok) throw new ApiError(res.status, await parseErrorDetail(res));
   return res;
 }

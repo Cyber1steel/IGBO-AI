@@ -6,7 +6,18 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True)
+# Defense in depth against the class of bug where a stuck/slow query hangs a
+# request (and, if it also holds a pooled connection, can make every
+# subsequent request queue behind it): a shorter pool_timeout means "no free
+# connection" fails fast with a clear error instead of queuing indefinitely,
+# and asyncpg's command_timeout kills any single query that runs too long.
+engine = create_async_engine(
+    settings.database_url,
+    echo=False,
+    pool_pre_ping=True,
+    pool_timeout=10,
+    connect_args={"command_timeout": 10} if "asyncpg" in settings.database_url else {},
+)
 
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { getLevelDetail, LevelDetail } from "@/lib/api";
@@ -13,14 +14,21 @@ export default function LevelUnitsPage() {
   const [level, setLevel] = useState<LevelDetail | null>(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getLevelDetail(params.levelId)
-      .then(setLevel)
+      .then((data) => {
+        setLevel(data);
+        setError(false);
+      })
       .catch(() => setError(true));
   }, [params.levelId]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   if (error) {
-    return <p className="text-ink-soft">Couldn&apos;t load that level. Try going back to Learn.</p>;
+    return <ErrorState message="Couldn't load that level." onRetry={load} />;
   }
   if (!level) {
     return <p className="text-ink-soft">Loading…</p>;

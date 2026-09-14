@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Lock, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useAuth } from "@/lib/auth-context";
 import { getLevels, LevelSummary } from "@/lib/api";
@@ -13,11 +14,18 @@ export default function LearnPage() {
   const [levels, setLevels] = useState<LevelSummary[] | null>(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getLevels()
-      .then(setLevels)
+      .then((data) => {
+        setLevels(data);
+        setError(false);
+      })
       .catch(() => setError(true));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const currentLevelCode = profile?.current_level ?? "absolute_beginner";
   const currentLevelOrder = levels?.find((l) => l.code === currentLevelCode)?.order ?? 1;
@@ -26,11 +34,7 @@ export default function LearnPage() {
     <div>
       <SectionHeader title="Learn" description="Work through levels in order — each one builds on the last." />
 
-      {error && (
-        <Card className="text-center text-ink-soft py-10">
-          Couldn&apos;t load the curriculum right now. Try refreshing.
-        </Card>
-      )}
+      {error && <ErrorState message="Couldn't load the curriculum right now." onRetry={load} />}
 
       {!error && !levels && <p className="text-ink-soft">Loading levels…</p>}
 

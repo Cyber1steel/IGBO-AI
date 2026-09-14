@@ -1,4 +1,5 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -12,6 +13,7 @@ from app.core.config import get_settings
 from app.core.db import engine
 
 settings = get_settings()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("igboai")
 
 # The single most common first-run failure: the app connects to a real,
@@ -58,6 +60,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Logs method, path, status, and duration for every request. Deliberately
+# simple (no external dependency) — its whole job is making "which request
+# is slow or never returned" answerable from the console instead of guessed
+# at, which is exactly what was missing when the curriculum-loading issue
+# was reported with no visibility into where it was actually stuck.
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = (time.monotonic() - start) * 1000
+    logger.info("%s %s -> %d (%.1fms)", request.method, request.url.path, response.status_code, duration_ms)
+    if duration_ms > 3000:
+        logger.warning("SLOW REQUEST: %s %s took %.1fms", request.method, request.url.path, duration_ms)
+    return response
+
 
 app.include_router(health.router)
 app.include_router(ai.router)

@@ -1,6 +1,6 @@
 import random
 
-from app.ai.base import AIProvider, TutorMessage, TutorReply
+from app.ai.base import AIProvider, TutorContext, TutorMessage, TutorReply
 
 # A small set of canned exchanges so the Conversation UI has something real
 # to respond with. This is NOT Igbo-language intelligence — it's fixture
@@ -19,7 +19,8 @@ _DEFAULT_REPLIES = [
 class MockAIProvider(AIProvider):
     """Active by default. Returns canned, clearly-labeled responses so the
     rest of the product (UI, API contract, conversation flow) can be built
-    and tested without a live N-ATLaS endpoint."""
+    and tested without a live N-ATLaS endpoint. Never fails, never times
+    out — that's what makes it a safe development fallback."""
 
     name = "mock"
 
@@ -27,11 +28,17 @@ class MockAIProvider(AIProvider):
         self,
         history: list[TutorMessage],
         message: str,
+        context: TutorContext,
     ) -> TutorReply:
         lowered = message.strip().lower()
         if any(greeting in lowered for greeting in ("ndewo", "nnọọ", "hello", "hi")):
             reply = random.choice(_GREETING_REPLIES)
         else:
             reply = random.choice(_DEFAULT_REPLIES)
+
+        # Light, honest use of context: mention it's aware of the lesson
+        # without inventing any Igbo-language content from it.
+        if context.lesson_title and random.random() < 0.34:
+            reply += f" (We're working on \"{context.lesson_title}\" right now.)"
 
         return TutorReply(message=reply, provider=self.name)

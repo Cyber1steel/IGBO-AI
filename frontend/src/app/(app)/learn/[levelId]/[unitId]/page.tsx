@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, PlayCircle, Circle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useAuth } from "@/lib/auth-context";
 import { getUnitDetail, getLessonProgress, UnitDetail, LessonProgress } from "@/lib/api";
@@ -16,11 +17,18 @@ export default function UnitLessonsPage() {
   const [progressByLesson, setProgressByLesson] = useState<Record<string, LessonProgress>>({});
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getUnitDetail(params.unitId)
-      .then(setUnit)
+      .then((data) => {
+        setUnit(data);
+        setError(false);
+      })
       .catch(() => setError(true));
   }, [params.unitId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEffect(() => {
     if (!unit || !accessToken) return;
@@ -30,10 +38,12 @@ export default function UnitLessonsPage() {
         results.forEach((p) => (map[p.lesson_id] = p));
         setProgressByLesson(map);
       })
-      .catch(() => {});
+      .catch(() => {
+        // Non-fatal: lesson list still renders without progress badges.
+      });
   }, [unit, accessToken]);
 
-  if (error) return <p className="text-ink-soft">Couldn&apos;t load that unit.</p>;
+  if (error) return <ErrorState message="Couldn't load that unit." onRetry={load} />;
   if (!unit) return <p className="text-ink-soft">Loading…</p>;
 
   return (

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, PartyPopper } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { ExerciseStep } from "@/components/lesson/ExerciseStep";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -30,19 +31,28 @@ export default function LessonFlowPage() {
   const [completion, setCompletion] = useState<LessonProgress | null>(null);
   const [completing, setCompleting] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getLessonDetail(params.lessonId)
-      .then(setLesson)
+      .then((data) => {
+        setLesson(data);
+        setError(false);
+      })
       .catch(() => setError(true));
   }, [params.lessonId]);
 
   useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
     if (accessToken) {
-      startLesson(accessToken, params.lessonId).catch(() => {});
+      startLesson(accessToken, params.lessonId).catch(() => {
+        // Non-fatal — the lesson still renders; completion will just retry the write.
+      });
     }
   }, [accessToken, params.lessonId]);
 
-  if (error) return <p className="text-ink-soft">Couldn&apos;t load this lesson.</p>;
+  if (error) return <ErrorState message="Couldn't load this lesson." onRetry={load} />;
   if (!lesson) return <p className="text-ink-soft">Loading…</p>;
 
   const steps: Step[] = [

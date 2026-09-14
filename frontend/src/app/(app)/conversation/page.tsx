@@ -1,20 +1,31 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { sendTutorMessage, TutorMessage } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { sendTutorMessage, ApiError, ApiTimeoutError } from "@/lib/api";
 
-const OPENING: TutorMessage = {
+interface DisplayMessage {
+  role: "learner" | "tutor" | "system";
+  content: string;
+  correction?: string | null;
+  explanation?: string | null;
+}
+
+const OPENING: DisplayMessage = {
   role: "tutor",
   content: "Ndewo! Let's practice a short conversation. Try greeting me in Igbo.",
 };
 
 export default function ConversationPage() {
-  const [messages, setMessages] = useState<TutorMessage[]>([OPENING]);
+  const { accessToken } = useAuth();
+  const [messages, setMessages] = useState<DisplayMessage[]>([OPENING]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
+  const [providerLabel, setProviderLabel] = useState("Mock tutor — N-ATLaS available via configuration");
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,26 +34,35 @@ export default function ConversationPage() {
 
   async function handleSend() {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || !accessToken) return;
 
-    const nextHistory = [...messages, { role: "learner" as const, content: text }];
-    setMessages(nextHistory);
+    setMessages((prev) => [...prev, { role: "learner", content: text }]);
     setInput("");
     setSending(true);
 
     try {
-      const reply = await sendTutorMessage(messages, text);
-      setMessages([...nextHistory, { role: "tutor", content: reply.message }]);
-    } catch {
-      // Backend not running yet in Phase 2 — fall back locally so the UI stays usable.
-      setMessages([
-        ...nextHistory,
+      const reply = await sendTutorMessage(accessToken, text, conversationId);
+      setConversationId(reply.conversation_id);
+      setProviderLabel(
+        reply.provider === "natlas" ? "N-ATLaS" : "Mock tutor — N-ATLaS available via configuration"
+      );
+      setMessages((prev) => [
+        ...prev,
         {
           role: "tutor",
-          content:
-            "(Backend not reachable — this is a placeholder reply. Start the FastAPI server to talk to the mock tutor.)",
+          content: reply.message,
+          correction: reply.correction,
+          explanation: reply.explanation,
         },
       ]);
+    } catch (err) {
+      const message =
+        err instanceof ApiTimeoutError
+          ? "The tutor is taking too long to respond. Please try again."
+          : err instanceof ApiError
+          ? err.message
+          : "Couldn't reach the tutor. Check your connection and try again.";
+      setMessages((prev) => [...prev, { role: "system", content: message }]);
     } finally {
       setSending(false);
     }
@@ -58,26 +78,41 @@ export default function ConversationPage() {
       <Card className="flex-1 flex flex-col overflow-hidden p-0">
         <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-sm text-ink-soft">
           <Sparkles size={15} className="text-gold" />
-          Mock tutor — N-ATLaS connects in Phase 5
+          {providerLabel}
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`flex ${m.role === "learner" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] ${
-                  m.role === "learner"
-                    ? "bg-indigo text-paper rounded-br-sm"
-                    : "bg-sand text-ink rounded-bl-sm"
-                }`}
-              >
-                {m.content}
+          {messages.map((m, i) => {
+            if (m.role === "system") {
+              return (
+                <div key={i} className="flex justify-center">
+                  <div className="flex items-center gap-2 rounded-xl bg-terracotta/10 text-terracotta px-4 py-2 text-sm">
+                    <AlertCircle size={14} />
+                    {m.content}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={i} className={`flex ${m.role === "learner" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] ${
+                    m.role === "learner"
+                      ? "bg-indigo text-paper rounded-br-sm"
+                      : "bg-sand text-ink rounded-bl-sm"
+                  }`}
+                >
+                  {m.content}
+                  {m.correction && (
+                    <p className="mt-2 text-sm text-terracotta border-t border-terracotta/20 pt-2">
+                      Correction: {m.correction}
+                    </p>
+                  )}
+                  {m.explanation && <p className="mt-1 text-sm text-ink-soft">{m.explanation}</p>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={endRef} />
         </div>
 
