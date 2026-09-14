@@ -43,14 +43,20 @@ account to reach the dashboard (learner pages are auth-protected).
 
 ## Current phase
 
-**Phase 4 complete**: full curriculum & lesson engine. Levels → units →
-lessons → objectives/content/examples → exercises → vocabulary, all
-database-backed and browsable (Learn section). A working lesson flow
-(Introduction → Learn → Examples → Practice → Completion) with
-server-side, non-AI exercise grading, idempotent XP awarding, and simple
-vocabulary-exposure tracking. Vocabulary, Review, Practice, Dashboard, and
-Progress pages all pull real learner data. Conversation page is still on
-the mock AI provider (expected — N-ATLaS integration is Phase 5).
+**Phase 5 complete**: N-ATLaS integration architecture. `NATLaSProvider` is
+a real HTTP client (not a stub) targeting a self-hosted OpenAI-compatible
+inference endpoint, configured via `AI_PROVIDER=natlas` +
+`NATLAS_ENDPOINT_URL`. No hosted N-ATLaS API exists and this environment
+has no GPU, so no live inference has actually been run — what's verified is
+that the integration boundary is clean: unreachable/misconfigured N-ATLaS
+fails with a clear 503/504, the app never crashes, and `MockAIProvider`
+(default) is entirely unaffected. The AI tutor is now a real authenticated
+feature: conversations persist per-learner, context (level, current lesson,
+relevant vocabulary) is built server-side and bounded, and responses use a
+structured contract (message + optional correction/explanation/suggested
+exercise/language level). Also hardened request handling app-wide (explicit
+timeouts frontend and backend, retry-capable error states, request-timing
+logs) after investigating a reported curriculum-loading issue.
 
 Full 12-phase roadmap lives in `PHASE1_RESEARCH.md`.
 

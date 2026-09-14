@@ -38,9 +38,11 @@ refresh/logout token lifecycle, and cross-user authorization.
 ## Key endpoints
 
 - `GET /api/health`
-- `POST /api/ai/tutor` — mock AI tutor (see AI provider abstraction below)
+- `POST /api/ai/tutor` — AI tutor (auth required); persists the conversation, see AI provider abstraction below
 - `POST /auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh`, `GET /auth/me`
 - `GET/PATCH /learners/me`, `POST /learners/me/activity-ping`
+- `GET /curriculum/levels(+detail)/units/lessons` (public), `POST /lessons/{id}/start|complete`,
+  `POST /exercises/{id}/attempt`, `GET /vocabulary` (public) / `/vocabulary/me`
 
 ## Structure
 
@@ -73,7 +75,23 @@ refresh/logout token lifecycle, and cross-user authorization.
   scoped to `/auth`. Rotated on every use; revoked on logout.
 - Passwords: bcrypt, 72-byte input capped (rejected, not silently truncated).
 
-## Switching AI providers later (Phase 5)
+## Using N-ATLaS instead of the mock provider
 
-Once a real N-ATLaS endpoint exists: implement `NATLaSProvider.generate_tutor_reply`,
-set `AI_PROVIDER=natlas` in `.env`. Nothing else in the app changes.
+`NATLaSProvider` is a real HTTP client, not a stub — it's just never been
+run against a live model, because no hosted N-ATLaS API exists and this
+project's dev environment has no GPU. To use it:
+
+1. Self-host N-ATLaS (`NCAIR1/N-ATLaS` on Hugging Face) behind an
+   OpenAI-compatible chat-completions server — e.g. vLLM's
+   `vllm serve NCAIR1/N-ATLaS --api-key ...` (needs a real GPU; see
+   `PHASE1_RESEARCH.md` for hardware/licensing notes).
+2. Set `AI_PROVIDER=natlas`, `NATLAS_ENDPOINT_URL=http://<your-server>`,
+   and `NATLAS_API_KEY` (if your server requires one) in `.env`.
+3. Restart the backend. The app never requires this to boot — with
+   `AI_PROVIDER=mock` (default) or with `natlas` misconfigured/unreachable,
+   everything else works normally and `/api/ai/tutor` just returns a clean
+   503/504 instead of a tutor reply.
+
+If your actual inference server's request/response shape differs from
+OpenAI's chat-completions format, only `_build_payload`/`_parse_response`
+in `app/ai/natlas_provider.py` need to change.
