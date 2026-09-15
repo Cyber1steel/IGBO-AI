@@ -29,6 +29,14 @@ const OPENING: DisplayMessage = {
   content: "Ndewo! Let's practice a short conversation. Try greeting me in Igbo.",
 };
 
+// Never claim to be N-ATLaS (or anything else) unless the backend actually
+// says so — this is read straight from the response, never assumed.
+function providerLabelFor(provider: string): string {
+  if (provider === "natlas") return "N-ATLaS";
+  if (provider === "general") return "AI tutor";
+  return "Mock tutor — a real AI provider can be configured";
+}
+
 export default function ConversationPage() {
   const { accessToken } = useAuth();
   const searchParams = useSearchParams();
@@ -39,7 +47,7 @@ export default function ConversationPage() {
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
-  const [providerLabel, setProviderLabel] = useState("Mock tutor — N-ATLaS available via configuration");
+  const [providerLabel, setProviderLabel] = useState("Mock tutor — a real AI provider can be configured");
   const [lessonTitle, setLessonTitle] = useState<string | null>(null);
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -87,9 +95,7 @@ export default function ConversationPage() {
     try {
       const reply = await sendTutorMessage(accessToken, text, conversationId, lessonId);
       setConversationId(reply.conversation_id);
-      setProviderLabel(
-        reply.provider === "natlas" ? "N-ATLaS" : "Mock tutor — N-ATLaS available via configuration"
-      );
+      setProviderLabel(providerLabelFor(reply.provider));
       setMessages((prev) => [
         ...prev,
         {

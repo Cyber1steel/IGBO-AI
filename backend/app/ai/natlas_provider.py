@@ -2,6 +2,7 @@ import httpx
 
 from app.ai.base import AIProvider, TutorContext, TutorMessage, TutorReply
 from app.ai.errors import AIProviderError, AIProviderTimeout
+from app.ai.prompts import build_tutor_system_prompt
 from app.core.config import Settings
 
 # Per Phase 1 research: N-ATLaS (NCAIR1/N-ATLaS) has no hosted inference API.
@@ -67,7 +68,7 @@ class NATLaSProvider(AIProvider):
     def _build_payload(
         self, history: list[TutorMessage], message: str, context: TutorContext
     ) -> dict:
-        system_prompt = self._build_system_prompt(context)
+        system_prompt = build_tutor_system_prompt(context)
         messages = [{"role": "system", "content": system_prompt}]
         # Context management (Phase 5 section 11): only the last few turns,
         # not the whole conversation -- keeps the prompt bounded regardless
@@ -83,52 +84,6 @@ class NATLaSProvider(AIProvider):
             "max_tokens": _MAX_TOKENS,
             "temperature": 0.4,
         }
-
-    def _build_system_prompt(self, context: TutorContext) -> str:
-        lines = [
-            "You are a patient Igbo language tutor embedded in a structured curriculum. "
-            "Teach according to the curriculum -- don't just chat freely about Igbo.",
-            "Teach, don't just answer. Give hints before answers when the learner is working "
-            "through an exercise. Ask follow-up questions and encourage active practice.",
-            "The learner may write in English, Igbo, or a mix of both -- respond naturally to "
-            "whichever they use. For beginners, keep explanations primarily in English with light "
-            "Igbo exposure; use more Igbo as the learner's level increases.",
-            "When correcting a mistake, structure your correction clearly: acknowledge what they "
-            "said, give the correct form, briefly explain why, and offer one short example. Only "
-            "correct meaningful errors -- do not nitpick minor stylistic differences.",
-            "Never invent Igbo vocabulary, grammar rules, or proverbs you are not confident about -- "
-            "say you're not sure rather than guessing.",
-            f"The learner's current level is: {context.learner_level}.",
-        ]
-        if context.performance_signal == "struggling":
-            lines.append(
-                "They've been finding recent exercises difficult -- simplify your language, slow "
-                "down, and keep explanations short and encouraging."
-            )
-        elif context.performance_signal == "comfortable":
-            lines.append(
-                "They've been doing well recently -- you can introduce slightly more complexity "
-                "and use more Igbo."
-            )
-        if context.unit_title:
-            lines.append(f'They are currently in the unit: "{context.unit_title}".')
-        if context.lesson_title:
-            lines.append(f'They are currently working on the lesson: "{context.lesson_title}".')
-        if context.lesson_objective:
-            lines.append(f"The lesson's objective is: {context.lesson_objective}.")
-        if context.relevant_vocabulary:
-            lines.append("Relevant vocabulary for this conversation: " + ", ".join(context.relevant_vocabulary))
-        if context.known_weaknesses:
-            lines.append(
-                "Words they've struggled to retain (reinforce these naturally if relevant, don't "
-                "force them): " + ", ".join(context.known_weaknesses)
-            )
-        if context.lesson_title:
-            lines.append(
-                "If they ask to talk about something else, you may follow their interest briefly, "
-                "but gently steer back toward the current lesson rather than abandoning it entirely."
-            )
-        return "\n".join(lines)
 
     def _parse_response(self, response: httpx.Response) -> TutorReply:
         try:

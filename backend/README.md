@@ -59,8 +59,17 @@ refresh/logout token lifecycle, and cross-user authorization.
 - `app/scripts/seed.py` — small dev seed dataset, explicitly not the real curriculum
 - `app/ai/` — the AI provider abstraction:
   - `base.py` — `AIProvider` interface every provider implements
-  - `mock_provider.py` — **active by default.** Canned, clearly-labeled responses
-  - `natlas_provider.py` — stub for the real N-ATLaS integration (Phase 5)
+  - `prompts.py` — the shared tutor system-prompt builder used by every
+    real provider, so switching providers changes which model answers, not
+    how the tutor behaves
+  - `mock_provider.py` — **active by default.** Fixed, clearly-labeled
+    responses — does not actually read the learner's message. Useful for
+    UI/contract development without needing any API key
+  - `general_llm_provider.py` — a real, capable general-purpose LLM
+    (Anthropic's Messages API). Actually understands and responds to what
+    the learner writes. See "Using a real AI provider" below
+  - `natlas_provider.py` — real HTTP client for a self-hosted N-ATLaS
+    endpoint (Phase 5)
   - `factory.py` — the one place that picks which provider is active, via `AI_PROVIDER` env var
 - `app/api/` — routers (`health`, `ai`, `auth`, `learners`)
 - `app/schemas/` — Pydantic request/response models
@@ -75,7 +84,31 @@ refresh/logout token lifecycle, and cross-user authorization.
   scoped to `/auth`. Rotated on every use; revoked on logout.
 - Passwords: bcrypt, 72-byte input capped (rejected, not silently truncated).
 
-## Using N-ATLaS instead of the mock provider
+## Using a real AI provider
+
+`AI_PROVIDER=mock` (default) never reads the learner's actual message — it
+picks from a handful of fixed responses. For a tutor that genuinely
+understands and responds to what's typed, use one of the two real
+providers instead:
+
+### `AI_PROVIDER=general` — recommended for now
+
+A real, general-purpose LLM (currently Anthropic's Messages API — chosen
+because `api.anthropic.com` is reachable from this project's dev/sandbox
+network setup; swap vendors by editing `_build_payload`/`_parse_response`
+in `general_llm_provider.py` if you prefer a different one). It genuinely
+reads and responds to the learner's message, understands English/Igbo/
+mixed input, and returns structured JSON (message + optional correction/
+explanation/hint/example/follow_up_question) that the frontend renders.
+
+1. Get an API key at https://console.anthropic.com/ (this costs money per use).
+2. Set `AI_PROVIDER=general` and `GENERAL_LLM_API_KEY=<your key>` in `.env`.
+3. Restart the backend.
+
+Like every provider, this never blocks the app from starting — with no key
+set, `/api/ai/tutor` just returns a clean 503 instead of crashing.
+
+### `AI_PROVIDER=natlas` — the specialized Igbo model, once self-hosted
 
 `NATLaSProvider` is a real HTTP client, not a stub — it's just never been
 run against a live model, because no hosted N-ATLaS API exists and this
@@ -87,10 +120,7 @@ project's dev environment has no GPU. To use it:
    `PHASE1_RESEARCH.md` for hardware/licensing notes).
 2. Set `AI_PROVIDER=natlas`, `NATLAS_ENDPOINT_URL=http://<your-server>`,
    and `NATLAS_API_KEY` (if your server requires one) in `.env`.
-3. Restart the backend. The app never requires this to boot — with
-   `AI_PROVIDER=mock` (default) or with `natlas` misconfigured/unreachable,
-   everything else works normally and `/api/ai/tutor` just returns a clean
-   503/504 instead of a tutor reply.
+3. Restart the backend.
 
 If your actual inference server's request/response shape differs from
 OpenAI's chat-completions format, only `_build_payload`/`_parse_response`

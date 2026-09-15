@@ -43,22 +43,18 @@ account to reach the dashboard (learner pages are auth-protected).
 
 ## Current phase
 
-**Phase 6 complete**: the AI tutor now has a dedicated orchestration layer
-(`app/services/tutor_orchestrator.py`) separating context-building,
-provider calls, and persistence from the API route. Learner context now
-includes the current unit, a lightweight application-computed
-`performance_signal` ("struggling"/"developing"/"comfortable", derived from
-recent exercise correctness — never invented by the model), and the
-learner's own weakest vocabulary. The response contract grew hint/example/
-follow_up_question/learning_action fields. Conversations resume correctly
-after leaving and returning (`GET /api/ai/conversation`), and learning
-events use canonical names (`exercise_correct`/`exercise_incorrect`,
-`tutor_message_sent`, `tutor_correction_given`, `vocabulary_encountered`).
-N-ATLaS's system prompt now encodes the language policy, structured
-correction behavior, and adaptive tone — still unverified against a live
-model (no hosted API, no local GPU), same honest limitation as Phase 5.
-
-Full 12-phase roadmap lives in `PHASE1_RESEARCH.md`.
+**Phase 6.5 complete**: the tutor now has a real, working AI provider —
+`AI_PROVIDER=general` uses Anthropic's Messages API and genuinely reads and
+responds to what the learner writes (not fixed responses), returning
+structured JSON that the frontend renders (correction/explanation/hint/
+example/follow_up_question, all optional). `MockAIProvider` and
+`NATLaSProvider` are both unchanged and still available — provider
+selection is one env var, and the tutor orchestrator doesn't know or care
+which is active. A shared prompt builder (`app/ai/prompts.py`) keeps tutor
+behavior consistent across both real providers. Live generation was tested
+architecturally (missing-key handling, JSON parsing/fallback, clean
+503s) — actual output quality is untested pending an API key, since using
+one costs real money and wasn't authorized to spend automatically.
 
 Full 12-phase roadmap lives in `PHASE1_RESEARCH.md`.
 

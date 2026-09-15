@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from app.ai.base import AIProvider
+from app.ai.general_llm_provider import GeneralLLMProvider
 from app.ai.mock_provider import MockAIProvider
 from app.ai.natlas_provider import NATLaSProvider
 from app.core.config import Settings, get_settings
@@ -8,12 +9,14 @@ from app.core.config import Settings, get_settings
 
 @lru_cache
 def get_ai_provider() -> AIProvider:
-    """Single place that decides which AIProvider implementation is active.
-    Swapping the default from mock to N-ATLaS in Phase 5 is a one-line change
-    here (and setting AI_PROVIDER=natlas) — nothing else in the app needs to
-    know which provider is behind the interface."""
+    """Single place that decides which AIProvider implementation is active,
+    via AI_PROVIDER=mock|general|natlas. Nothing else in the app (the tutor
+    orchestrator, the API route, the frontend) knows or cares which one is
+    behind the interface -- that's the whole point of the abstraction."""
     settings: Settings = get_settings()
 
+    if settings.ai_provider == "general":
+        return GeneralLLMProvider(settings)
     if settings.ai_provider == "natlas":
         return NATLaSProvider(settings)
     return MockAIProvider()
