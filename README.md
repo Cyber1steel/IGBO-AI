@@ -43,18 +43,20 @@ account to reach the dashboard (learner pages are auth-protected).
 
 ## Current phase
 
-**Phase 6.5 complete**: the tutor now has a real, working AI provider —
-`AI_PROVIDER=general` uses Anthropic's Messages API and genuinely reads and
-responds to what the learner writes (not fixed responses), returning
-structured JSON that the frontend renders (correction/explanation/hint/
-example/follow_up_question, all optional). `MockAIProvider` and
-`NATLaSProvider` are both unchanged and still available — provider
-selection is one env var, and the tutor orchestrator doesn't know or care
-which is active. A shared prompt builder (`app/ai/prompts.py`) keeps tutor
-behavior consistent across both real providers. Live generation was tested
-architecturally (missing-key handling, JSON parsing/fallback, clean
-503s) — actual output quality is untested pending an API key, since using
-one costs real money and wasn't authorized to spend automatically.
+**Phase 6.52 complete**: the `AI_PROVIDER=general` real-AI provider now
+runs on **Google Gemini** (official `google-genai` SDK) instead of
+Anthropic, specifically because Gemini has a genuine no-credit-card free
+tier. Uses Gemini's native structured-output mode (`response_schema`, not
+prompt-engineered JSON) for the message/correction/explanation/hint/
+example/follow_up_question contract. `MockAIProvider` and `NATLaSProvider`
+are both unchanged; provider selection is still one env var
+(`AI_PROVIDER=mock|general|natlas`), and the tutor orchestrator still
+doesn't know or care which is active — swapping vendors only touched
+`app/ai/gemini_provider.py`, `factory.py`, and config. Verified live: app
+boots fine and returns a clean 503 with no key configured; the API surface
+(SDK client, error types, config fields, response shape) was verified
+directly against the installed SDK, not assumed from docs. Actual live
+conversation quality is still untested — needs the user's own free API key.
 
 Full 12-phase roadmap lives in `PHASE1_RESEARCH.md`.
 

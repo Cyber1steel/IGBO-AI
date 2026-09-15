@@ -65,9 +65,10 @@ refresh/logout token lifecycle, and cross-user authorization.
   - `mock_provider.py` — **active by default.** Fixed, clearly-labeled
     responses — does not actually read the learner's message. Useful for
     UI/contract development without needing any API key
-  - `general_llm_provider.py` — a real, capable general-purpose LLM
-    (Anthropic's Messages API). Actually understands and responds to what
-    the learner writes. See "Using a real AI provider" below
+  - `gemini_provider.py` — a real, capable general-purpose LLM (Google
+    Gemini, official `google-genai` SDK, free tier). Actually understands
+    and responds to what the learner writes. See "Using a real AI provider"
+    below
   - `natlas_provider.py` — real HTTP client for a self-hosted N-ATLaS
     endpoint (Phase 5)
   - `factory.py` — the one place that picks which provider is active, via `AI_PROVIDER` env var
@@ -91,19 +92,36 @@ picks from a handful of fixed responses. For a tutor that genuinely
 understands and responds to what's typed, use one of the two real
 providers instead:
 
-### `AI_PROVIDER=general` — recommended for now
+### `AI_PROVIDER=general` — recommended for now, free tier
 
-A real, general-purpose LLM (currently Anthropic's Messages API — chosen
-because `api.anthropic.com` is reachable from this project's dev/sandbox
-network setup; swap vendors by editing `_build_payload`/`_parse_response`
-in `general_llm_provider.py` if you prefer a different one). It genuinely
-reads and responds to the learner's message, understands English/Igbo/
-mixed input, and returns structured JSON (message + optional correction/
-explanation/hint/example/follow_up_question) that the frontend renders.
+A real, general-purpose LLM: Google Gemini, via the official `google-genai`
+SDK (not the deprecated `google-generativeai` package). Chosen specifically
+because it has a genuinely free tier with no credit card required — see
+[Google's current free-tier limits](https://ai.google.dev/gemini-api/docs/rate-limits)
+(Flash-class models, a handful of requests/minute; fine for development).
+It genuinely reads and responds to the learner's message, understands
+English/Igbo/mixed input, and uses Gemini's structured-output mode
+(`response_schema`, not prompt-engineered JSON) to reliably return
+message + optional correction/explanation/hint/example/follow_up_question.
 
-1. Get an API key at https://console.anthropic.com/ (this costs money per use).
-2. Set `AI_PROVIDER=general` and `GENERAL_LLM_API_KEY=<your key>` in `.env`.
+1. Get a free key at https://aistudio.google.com/apikey (Google account, no billing needed).
+2. Set `AI_PROVIDER=general` and `GEMINI_API_KEY=<your key>` in `.env`.
 3. Restart the backend.
+
+The default model (`GEMINI_MODEL=gemini-2.5-flash`) is set from Google's
+docs at the time this was written — model availability shifts, so if it
+ever 404s for your key, check the
+[current model list](https://ai.google.dev/gemini-api/docs/models) and set
+`GEMINI_MODEL` accordingly; no code changes needed. Free-tier requests are
+also rate-limited (expect 429s if you send messages faster than a few per
+minute) — the app surfaces this as a clean "try again shortly" error, not a
+crash, and does not auto-retry (retrying against a free quota can burn it
+faster).
+
+If you'd rather use a different vendor (OpenAI, Anthropic, etc.), only
+`gemini_provider.py` needs replacing — `factory.py`, the orchestrator, and
+the frontend don't know or care which general-purpose LLM is behind
+`AI_PROVIDER=general`.
 
 Like every provider, this never blocks the app from starting — with no key
 set, `/api/ai/tutor` just returns a clean 503 instead of crashing.

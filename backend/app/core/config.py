@@ -32,16 +32,13 @@ class Settings(BaseSettings):
     natlas_endpoint_url: str | None = None
     natlas_api_key: str | None = None
 
-    # General-purpose LLM provider (Phase 6.5) — a real, capable model used
-    # as a practical stand-in while N-ATLaS has no hosted API and no GPU is
-    # available to self-host it. Implemented against Anthropic's Messages
-    # API specifically because api.anthropic.com is reachable from this
-    # project's dev/sandbox network configuration — see
-    # app/ai/general_llm_provider.py for the reasoning and how to swap
-    # vendors if you prefer a different one.
-    general_llm_api_key: str | None = None
-    general_llm_model: str = "claude-haiku-4-5-20251001"
-    general_llm_base_url: str = "https://api.anthropic.com"
+    # Real general-purpose LLM provider (Gemini) — a practical stand-in
+    # while N-ATLaS has no reachable hosted API and no GPU is available to
+    # self-host it. Free tier, no credit card required — see
+    # app/ai/gemini_provider.py and backend/README.md for setup and current
+    # free-tier notes.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
 
     @model_validator(mode="after")
     def _refuse_default_secret_in_production(self) -> "Settings":
