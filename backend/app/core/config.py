@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
 
-    # AI provider selection: "mock" (default) | "general" | "natlas"
+    # AI provider selection: "mock" (default) | "gemini" | "groq" | "natlas"
     ai_provider: str = "mock"
 
     # N-ATLaS connection details — unused until AI_PROVIDER=natlas
@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # free-tier notes.
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
+
+    # Groq general-purpose provider. The model is verified against the
+    # official groq-python SDK documentation example.
+    groq_api_key: str | None = None
+    groq_model: str = "openai/gpt-oss-20b"
 
     @model_validator(mode="after")
     def _refuse_default_secret_in_production(self) -> "Settings":

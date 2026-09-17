@@ -69,6 +69,8 @@ refresh/logout token lifecycle, and cross-user authorization.
     Gemini, official `google-genai` SDK, free tier). Actually understands
     and responds to what the learner writes. See "Using a real AI provider"
     below
+  - `groq_provider.py` — a Groq chat-completions provider using the official
+    `groq` Python SDK and the same tutor contract
   - `natlas_provider.py` — real HTTP client for a self-hosted N-ATLaS
     endpoint (Phase 5)
   - `factory.py` — the one place that picks which provider is active, via `AI_PROVIDER` env var
@@ -92,7 +94,7 @@ picks from a handful of fixed responses. For a tutor that genuinely
 understands and responds to what's typed, use one of the two real
 providers instead:
 
-### `AI_PROVIDER=general` — recommended for now, free tier
+### `AI_PROVIDER=gemini` — Google Gemini
 
 A real, general-purpose LLM: Google Gemini, via the official `google-genai`
 SDK (not the deprecated `google-generativeai` package). Chosen specifically
@@ -105,7 +107,7 @@ English/Igbo/mixed input, and uses Gemini's structured-output mode
 message + optional correction/explanation/hint/example/follow_up_question.
 
 1. Get a free key at https://aistudio.google.com/apikey (Google account, no billing needed).
-2. Set `AI_PROVIDER=general` and `GEMINI_API_KEY=<your key>` in `.env`.
+2. Set `AI_PROVIDER=gemini` and `GEMINI_API_KEY=<your key>` in `.env`.
 3. Restart the backend.
 
 The default model (`GEMINI_MODEL=gemini-2.5-flash`) is set from Google's
@@ -121,10 +123,27 @@ faster).
 If you'd rather use a different vendor (OpenAI, Anthropic, etc.), only
 `gemini_provider.py` needs replacing — `factory.py`, the orchestrator, and
 the frontend don't know or care which general-purpose LLM is behind
-`AI_PROVIDER=general`.
+`AI_PROVIDER=gemini` (the legacy `AI_PROVIDER=general` alias remains supported).
 
 Like every provider, this never blocks the app from starting — with no key
 set, `/api/ai/tutor` just returns a clean 503 instead of crashing.
+
+### `AI_PROVIDER=groq` — Groq
+
+Groq uses the official `groq` Python SDK and the same Tutor Orchestrator,
+context, history, prompt, and response contract as Gemini. Set:
+
+```text
+AI_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=openai/gpt-oss-20b
+```
+
+The model ID follows the current official `groq-python` README example. The
+provider disables the SDK's automatic retries so rate-limit errors are not
+silently retried and amplified. Missing keys, invalid keys, unavailable
+models, rate limits, timeouts, connection failures, and malformed responses
+return clean provider errors; there is no fallback to MockAIProvider.
 
 ### `AI_PROVIDER=natlas` — the specialized Igbo model, once self-hosted
 
