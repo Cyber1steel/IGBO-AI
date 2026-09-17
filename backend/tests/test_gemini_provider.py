@@ -6,10 +6,13 @@ from httpx import AsyncClient
 
 from app.ai.base import TutorContext
 from app.ai.errors import AIProviderError
+from app.ai.errors import AIProviderQuotaError
 from app.ai.factory import get_ai_provider
 from app.ai.gemini_provider import GeminiProvider, _GeminiTutorReplySchema
 from app.core.config import Settings, get_settings
+from app.ai.prompts import build_tutor_system_prompt
 from app.main import app
+from app.ai.gemini_provider import _classify_gemini_quota_error
 
 
 def _make_provider(api_key: str | None = "test-key") -> GeminiProvider:
@@ -49,6 +52,59 @@ def test_parses_structured_reply_with_correction_and_example():
     assert reply.explanation == "That is the greeting form."
     assert reply.example == "Ndewo, kedu?"
     assert reply.follow_up_question == "Can you try it?"
+
+
+def test_parses_optional_learning_fields():
+    provider = _make_provider()
+    schema = _GeminiTutorReplySchema(
+        message="Let's practice.",
+        learning_action="Repeat the phrase aloud.",
+        suggested_exercise="Translate: Ndewo.",
+        language_level="beginner",
+    )
+    reply = provider._parse_response(_fake_response(parsed=schema))
+    assert reply.learning_action == "Repeat the phrase aloud."
+    assert reply.suggested_exercise == "Translate: Ndewo."
+    assert reply.language_level == "beginner"
+
+
+def test_prompt_prioritizes_intent_and_verified_curriculum_data():
+    prompt = build_tutor_system_prompt(
+        TutorContext(
+            learner_level="absolute_beginner",
+            lesson_content="Ndewo means hello.",
+            lesson_examples=[{"igbo": "Ndewo!", "english": "Hello!"}],
+            verified_vocabulary=["Ndewo = Hello"],
+        )
+    )
+    assert "infer the learner's intent" in prompt
+    assert "VERIFIED LESSON CONTENT" in prompt
+    assert "VERIFIED VOCABULARY" in prompt
+
+
+def test_classifies_daily_quota_without_exposing_response_body():
+    from google.genai import errors
+
+    exc = errors.ClientError(
+        429,
+        {
+            "error": {
+                "status": "RESOURCE_EXHAUSTED",
+                "message": "Daily quota exceeded for a private project.",
+                "details": [{"@type": "type.googleapis.com/google.rpc.QuotaFailure"}],
+            }
+        },
+    )
+    category, retry_after = _classify_gemini_quota_error(exc)
+    assert category == "daily_quota_exhausted"
+    assert retry_after is None
+
+
+def test_quota_error_has_safe_category_and_message():
+    error = AIProviderQuotaError("safe message", "tokens_per_minute", 2.0)
+    assert error.category == "tokens_per_minute"
+    assert error.retry_after_seconds == 2.0
+    assert "API key" not in str(error)
 
 
 def test_falls_back_to_raw_text_when_structured_parsing_is_empty():

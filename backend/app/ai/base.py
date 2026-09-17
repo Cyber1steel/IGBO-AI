@@ -28,8 +28,13 @@ class TutorContext:
     unit_title: str | None = None
     lesson_title: str | None = None
     lesson_objective: str | None = None
+    lesson_content: str | None = None
+    lesson_examples: list[dict[str, str]] = field(default_factory=list)
+    grammar_topic: str | None = None
     relevant_vocabulary: list[str] = field(default_factory=list)
+    verified_vocabulary: list[str] = field(default_factory=list)
     known_weaknesses: list[str] = field(default_factory=list)
+    lesson_progress: str | None = None
     # "new" | "struggling" | "developing" | "comfortable" — see
     # tutor_context.py for how this is derived.
     performance_signal: str = "new"

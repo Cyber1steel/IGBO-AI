@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.ai.base import AIProvider, TutorMessage, TutorReply
-from app.ai.errors import AIProviderError, AIProviderTimeout
+from app.ai.errors import AIProviderError, AIProviderQuotaError, AIProviderTimeout
 from app.models import Conversation, ConversationMessage, LearnerProfile, LearningEvent
 from app.services.tutor_context import build_tutor_context
 
@@ -32,6 +32,10 @@ class TutorTurnFailed(Exception):
     """Raised when the provider fails for any other reason. Wraps the
     underlying AIProviderError so the API layer has one exception type to
     catch regardless of provider internals."""
+
+    def __init__(self, message: str, provider_error: AIProviderError | None = None):
+        super().__init__(message)
+        self.provider_error = provider_error
 
 
 async def handle_tutor_turn(
@@ -69,7 +73,7 @@ async def handle_tutor_turn(
     except AIProviderTimeout as exc:
         raise TutorTurnTimeout() from exc
     except AIProviderError as exc:
-        raise TutorTurnFailed(str(exc)) from exc
+        raise TutorTurnFailed(str(exc), exc) from exc
 
     await _persist_turn(db, profile.id, conversation.id, message, reply, is_new_conversation)
     return conversation, reply

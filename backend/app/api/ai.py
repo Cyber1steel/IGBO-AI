@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.base import AIProvider
+from app.ai.errors import AIProviderQuotaError
 from app.ai.factory import get_ai_provider
 from app.core.db import get_db
 from app.core.deps import get_current_learner_profile
@@ -28,7 +29,17 @@ async def tutor_reply(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="The tutor is taking too long to respond. Please try again.",
         )
-    except TutorTurnFailed:
+    except TutorTurnFailed as exc:
+        if isinstance(exc.provider_error, AIProviderQuotaError):
+            if exc.provider_error.category in {
+                "daily_quota_exhausted",
+                "free_tier_model_quota",
+                "billing_or_quota_configuration",
+            }:
+                detail = "The AI provider quota is exhausted or unavailable for this model. Check Google AI Studio quota and billing settings."
+            else:
+                detail = "The AI provider is temporarily rate limited. Please try again later."
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The AI tutor is unavailable right now. Please try again shortly.",
